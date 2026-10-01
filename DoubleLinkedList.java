@@ -119,10 +119,9 @@ public class DoubleLinkedList<T> implements Iterable<T> {
         if (isEmpty()) {
             add(e);
             return;
-        }        
-        Node<T> newItem = new Node<T>(e, null, head);
-        head.prev = newItem;
-        head = newItem;
+        }      
+        head.prev = new Node<T>(e, null, head);        
+        head = head.prev;        
         size++;
     }
     
@@ -156,8 +155,15 @@ public class DoubleLinkedList<T> implements Iterable<T> {
         }        
     }    
     
-    //O(1)
+    //O(N) preventing memory leaks in other parts of the code
     public void clear() {
+        Node<T> pointer = head;
+        while (pointer != null) {
+            Node<T> next = pointer.next;            
+            pointer.prev = pointer.next = null;            
+            pointer.value = null;
+            pointer = next;
+        }        
         head = tail = null;
         size = 0;
     }
@@ -246,51 +252,43 @@ public class DoubleLinkedList<T> implements Iterable<T> {
     }
     
     //O(2n) = O(n)
-    public boolean remove(Object o) {        
+    public boolean remove(Object o) {                
         return remove(indexOf(o)) == null ? false : true;
     }
     
     //O(n)
     public T remove(int index) {
-        if (index < 0 || index >= size) 
-            throw new IndexOutOfBoundsException("Index " + index + " out of bounds " + size);
-
         if (isEmpty()) 
-            return null;
+            throw new RuntimeException("Empty list");
+
+        if (index < 0 || index >= size) 
+            throw new IndexOutOfBoundsException("Index " + index + " out of bounds " + size);                                
+                   
+        int i;
+        Node<T> pointer;
+        //search from the head of the list
+        if (index < size/2) 
+            for (i = 0, pointer = head; i != index; i++)  
+                pointer = pointer.next;
+        //search from the tail of the list
+        else 
+            for (i = size - 1, pointer = tail; i != index; i--)
+                pointer = pointer.prev;
+
+        return remove(pointer);
+    }
+
+    //O(1)
+    private T remove(Node<T> n) {
+        if (n == head) return removeFirst();
+        if (n == tail) return removeLast();
         
-        if (index == 0) {
-            T removed = head.value;
-
-            if (size == 1) {
-                head = tail = null;                
-            } else {
-                head = head.next;
-                head.prev = null;
-            }
-            size--;
-            return removed;
-        }
-
-        if (index == size - 1) {
-            T removed = tail.value;
-            tail = tail.prev;
-            tail.next = null;
-            size--;            
-            return removed;
-        }
-
-        //At this point, at least 3 nodes exist
-        int i = 0;
-        Node<T> pointer = head;
-        while (i != index) {
-            i++;
-            pointer = pointer.next;
-        }
-        T removed = pointer.value;
-        Node<T> prev = pointer.prev;
-        Node<T> next = pointer.next;
-        prev.next = next;
-        next.prev = prev;
+        //At this point there are at least 3 or more nodes                
+        n.prev.next = n.next;
+        n.next.prev = n.prev;        
+        n.prev = n.next = null;
+        T removed = n.value;
+        n.value = null;        
         size--;
         return removed;
     }
@@ -307,13 +305,32 @@ public class DoubleLinkedList<T> implements Iterable<T> {
     }
     
     //O(1)
-    public T removeFirst() {        
-        return remove(0);
+    public T removeFirst() {   
+        if (isEmpty()) 
+            throw new RuntimeException("Empty list");
+        
+        T removed = head.value;
+        head = head.next;
+        size--;
+        
+        if (isEmpty()) tail = null;                
+        else head.prev = null;                                
+    
+        return removed;
     }
     
     //O(1)
-    public T removeLast() {                
-        return remove(size - 1);
+    public T removeLast() {    
+        if (isEmpty()) 
+            throw new RuntimeException("Empty list");
+                        
+        T removed = tail.value;
+        tail = tail.prev;            
+        size--;        
+        if (isEmpty()) head = null;
+        else tail.next = null;
+
+        return removed;
     }
 
     //O(n)
